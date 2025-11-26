@@ -1,8 +1,10 @@
+// socket/index.js
 const jwt = require("jsonwebtoken");
 
 module.exports = (io) => {
+  // Accept token from handshake.auth.token (client sends auth:{ token })
   io.use((socket, next) => {
-    const token = socket.handshake.query?.token;
+    const token = socket.handshake.auth?.token;
     if (!token) return next(new Error("Authentication error: token required"));
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET);
@@ -14,10 +16,14 @@ module.exports = (io) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id, "userId:", socket.user.id);
+    console.log("Socket connected:", socket.id, "userId:", socket.user?.id);
 
-    // Join room properly
-    socket.on("joinRegion", ({ region, mode }) => {
+    // Accept joinRoom with object { region, mode }
+    socket.on("joinRoom", ({ region, mode } = {}) => {
+      if (!region || !mode) {
+        console.warn("joinRoom missing fields:", { region, mode });
+        return;
+      }
       const room = `${region}:${mode}`;
       socket.join(room);
       console.log(`Socket ${socket.id} joined ${room}`);
